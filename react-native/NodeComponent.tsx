@@ -261,7 +261,7 @@ const NodeComponent: React.FC<NodeComponentProps> = ({ node }) => {
       {/* Node label */}
       <View style={styles.labelContainer}>
         <View style={styles.label}>
-          <Text style={styles.labelText}>{node.label}</Text>
+          <Text style={styles.labelText} numberOfLines={1}>{node.label}</Text>
         </View>
       </View>
     </Animated.View>
@@ -342,21 +342,22 @@ const styles = StyleSheet.create({
   },
   labelContainer: {
     position: 'absolute',
-    top: -40,
-    left: '50%',
-    transform: [{ translateX: -50 }],
+    top: -20,
+    left: -30,
+    right: -30,
+    alignItems: 'center',
   },
   label: {
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   labelText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: '500',
     textAlign: 'center',
   },
