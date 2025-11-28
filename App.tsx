@@ -18,9 +18,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Github, Star, Paperclip, ArrowUp } from 'lucide-react-native';
+import { SimpleWorkflow } from './react-native/SimpleWorkflow';
 
 const { width } = Dimensions.get('window');
 const isSmallScreen = width < 768;
+
+// Removed old GraphAnimation - now using SimpleWorkflow component
 
 export default function App() {
   const [inputValue, setInputValue] = useState('');
@@ -30,7 +33,8 @@ export default function App() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showContent, setShowContent] = useState(false);
+  const [showGraph, setShowGraph] = useState(false);
+  const [triggerWorkflow, setTriggerWorkflow] = useState(false);
 
   // Animation values
   const headerSlide = useRef(new Animated.Value(300)).current;
@@ -69,7 +73,6 @@ export default function App() {
         useNativeDriver: true,
       }).start(() => {
         setIsLoading(false);
-        setShowContent(true);
 
         // Reset fade for main content
         fadeAnim.setValue(0);
@@ -151,6 +154,11 @@ export default function App() {
     if (inputValue.trim()) {
       setMessages([...messages, { role: 'user', text: inputValue }]);
       setInputValue('');
+      setShowGraph(true);
+
+      // Trigger the new workflow animation
+      setTriggerWorkflow(true);
+      setTimeout(() => setTriggerWorkflow(false), 100); // Reset trigger
     }
   };
 
@@ -240,16 +248,22 @@ export default function App() {
           {messages.length > 0 && (
             <ScrollView style={styles.messagesContainer}>
               {messages.map((message, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.messageWrapper,
-                    message.role === 'user' ? styles.userMessage : styles.botMessage,
-                  ]}
-                >
-                  <View style={styles.messageBubble}>
-                    <Text style={styles.messageText}>{message.text}</Text>
+                <View key={index}>
+                  <View
+                    style={[
+                      styles.messageWrapper,
+                      message.role === 'user' ? styles.userMessage : styles.botMessage,
+                    ]}
+                  >
+                    <View style={styles.messageBubble}>
+                      <Text style={styles.messageText}>{message.text}</Text>
+                    </View>
                   </View>
+
+                  {/* Show workflow animation after user message */}
+                  {message.role === 'user' && index === messages.length - 1 && showGraph && (
+                    <SimpleWorkflow onMessageSent={triggerWorkflow} />
+                  )}
                 </View>
               ))}
             </ScrollView>
@@ -477,5 +491,25 @@ const styles = StyleSheet.create({
   loadingVideo: {
     width: '100%',
     height: '100%',
+  },
+  graphContainer: {
+    marginVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  graphLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 30,
+    marginTop: 8,
+  },
+  graphLabel: {
+    color: '#a7f3d0',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  graphLabelRight: {
+    textAlign: 'right',
   },
 });
