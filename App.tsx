@@ -11,25 +11,43 @@ import {
   Platform,
   StatusBar,
   KeyboardAvoidingView,
-  Animated,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Github, Star, Paperclip, ArrowUp, Download, ChevronDown } from 'lucide-react-native';
 import { useCactusLM, type Message as CactusMessage } from 'cactus-react-native';
+import { AuroraWorkflow } from './components/AuroraWorkflow';
+import { TokenText } from './components/TokenText';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const isSmallScreen = width < 768;
 
-// Available local models
+// Available local models (HuggingFace models via Cactus)
 const AVAILABLE_MODELS = [
-  { id: 'qwen3-0.6', name: 'Qwen3 0.6B', size: '~500MB' },
-  { id: 'gemma3-1b', name: 'Gemma3 1B', size: '~800MB' },
+  { id: 'qwen3-0.6', name: 'Qwen3 0.6B', size: '~400MB' },
+  { id: 'smollm2-360m', name: 'SmolLM2 360M (HF)', size: '~300MB' },
 ] as const;
 
+// Router model options (for display)
+const ROUTER_MODELS = [
+  { id: 'qwen3-0.6', name: 'Qwen 3' },
+  { id: 'smollm2-360m', name: 'SmolLM2' },
+  { id: 'claude-3-5-haiku', name: 'Claude Haiku 4.5' },
+  { id: 'claude-opus-4', name: 'Claude Opus 4.5' },
+];
+
 type ModelId = typeof AVAILABLE_MODELS[number]['id'];
+type WorkflowPhase = 'idle' | 'aurora-thinking' | 'routing' | 'model-thinking' | 'complete';
+
+interface Message {
+  role: 'user' | 'assistant';
+  text: string;
+  preprompt?: string;
+  isAnimating?: boolean;
+}
 
 export default function App() {
   const [inputValue, setInputValue] = useState('');
@@ -37,10 +55,19 @@ export default function App() {
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedModel, setSelectedModel] = useState<ModelId>('qwen3-0.6');
   const [showModelPicker, setShowModelPicker] = useState(false);
+  
+  // Workflow state
+  const [workflowVisible, setWorkflowVisible] = useState(false);
+  const [workflowPhase, setWorkflowPhase] = useState<WorkflowPhase>('idle');
+  const [routedModelId, setRoutedModelId] = useState<string | undefined>();
+  const [hasSubmittedFirstPrompt, setHasSubmittedFirstPrompt] = useState(false);
+
+  // Background color animation (0 = original, 1 = dark blue)
+  const backgroundOpacity = useRef(new Animated.Value(0)).current;
 
   // CactusLM Hook - uses selected model
   const cactusLM = useCactusLM({ model: selectedModel });
@@ -56,7 +83,7 @@ export default function App() {
     });
   }, [cactusLM.isDownloaded, cactusLM.isDownloading, cactusLM.downloadProgress, cactusLM.error]);
 
-  // Animation values
+  // Animation values (using React Native Animated)
   const headerSlide = useRef(new Animated.Value(300)).current;
   const badgeSlide = useRef(new Animated.Value(300)).current;
   const titleSlide = useRef(new Animated.Value(300)).current;
@@ -124,10 +151,21 @@ export default function App() {
           }),
         ]).start();
       });
-    }, 2500); // 2.5 seconds for loading screen
+    }, 2500);
 
     return () => clearTimeout(loadingTimer);
   }, []);
+
+  // Animate background when first prompt submitted
+  useEffect(() => {
+    if (hasSubmittedFirstPrompt) {
+      Animated.timing(backgroundOpacity, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [hasSubmittedFirstPrompt]);
 
   useEffect(() => {
     fetch('https://api.github.com/repos/Egham-7/adaptive_router')
@@ -172,46 +210,28 @@ export default function App() {
       // Add user message
       setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
 
-      try {
-        // Check if model is downloaded
-        if (!cactusLM.isDownloaded) {
-          setMessages(prev => [...prev, {
-            role: 'assistant',
-            text: 'Model not downloaded yet. Please download the model first using the download button.'
-          }]);
-          return;
-        }
-
-        // Build conversation history for context
-        const conversationHistory: CactusMessage[] = messages.map(msg => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.text,
-        }));
-        
-        // Add current user message
-        conversationHistory.push({ role: 'user', content: userMessage });
-
-        // Generate completion with CactusLM
-        const result = await cactusLM.complete({
-          messages: conversationHistory,
-          options: {
-            maxTokens: 512,
-            temperature: 0.7,
-          },
-        });
-
-        // Add assistant response
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          text: result.response || 'No response generated.',
-        }]);
-      } catch (error) {
-        console.error('CactusLM error:', error);
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          text: `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`,
-        }]);
+      // Mark first prompt for background transition
+      if (!hasSubmittedFirstPrompt) {
+        setHasSubmittedFirstPrompt(true);
       }
+
+      // Start Aurora workflow
+      setWorkflowVisible(true);
+      setWorkflowPhase('aurora-thinking');
+
+      // TODO: Replace with actual Aurora Router API call
+      // For now, Aurora stays in thinking state indefinitely
+      // When API is implemented:
+      // 1. Call Aurora Router API with the prompt
+      // 2. Receive response with { selectedModel, reasoning }
+      // 3. setRoutedModelId(response.selectedModel)
+      // 4. setWorkflowPhase('routing') then 'model-thinking'
+      // 5. Call the selected model for completion
+      // 6. Add response with preprompt (reasoning)
+      // 7. Hide workflow with smooth animation
+      
+      console.log('Aurora Router: Analyzing prompt...', userMessage);
+      console.log('Waiting for Aurora Router API implementation...');
     }
   };
 
@@ -247,134 +267,125 @@ export default function App() {
   }
 
   return (
-    <ImageBackground
-      source={require('./assets/images/bgada.png')}
-      style={styles.container}
-      resizeMode="cover"
-    >
-      <StatusBar barStyle="light-content" />
-
-      {/* Header */}
-      <Animated.View
-        style={{
-          opacity: fadeAnim,
-          transform: [{ translateX: headerSlide }],
-        }}
+    <View style={styles.container}>
+      <ImageBackground
+        source={require('./assets/images/bgada.png')}
+        style={styles.backgroundImage}
+        resizeMode="cover"
       >
-        <BlurView intensity={80} tint="dark" style={styles.header}>
-        <View style={styles.logoContainer}>
-          <Image
-            source={require('./assets/images/aurora_logo.png')}
-            style={styles.logo}
-            contentFit="contain"
-          />
-          <Text style={styles.logoText}>Aurora AI</Text>
-        </View>
+        {/* Dark blue overlay after first prompt */}
+        <Animated.View style={[styles.backgroundOverlay, { opacity: backgroundOpacity }]} />
+        
+        <StatusBar barStyle="light-content" />
 
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.githubButton}>
-            <Github color="white" size={isSmallScreen ? 12 : 14} />
-            <Star color="white" size={isSmallScreen ? 12 : 14} />
-            {!isSmallScreen && starCount && (
-              <Text style={styles.buttonText}>{starCount.toLocaleString()}</Text>
-            )}
-          </TouchableOpacity>
+        {/* Header - pushed down */}
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateX: headerSlide }] }}>
+          <BlurView intensity={80} tint="dark" style={styles.header}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('./assets/images/aurora_logo.png')}
+                style={styles.logo}
+                contentFit="contain"
+              />
+              <Text style={styles.logoText}>Aurora AI</Text>
+            </View>
 
-          <TouchableOpacity style={styles.startButton}>
-            <Text style={styles.buttonText}>{isSmallScreen ? 'Start' : 'Get Started'}</Text>
-          </TouchableOpacity>
-        </View>
-      </BlurView>
-      </Animated.View>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
-      >
-        {/* Main Content */}
-        <View style={styles.mainContent}>
-          {messages.length === 0 && (
-            <Animated.View
-              style={[
-                styles.centerContent,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ translateX: badgeSlide }],
-                }
-              ]}
-            >
-              <LinearGradient
-                colors={['rgba(52, 211, 153, 0.2)', 'rgba(190, 242, 100, 0.2)']}
-                style={styles.badge}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Text style={styles.badgeText}>adaptive v 1.0</Text>
-              </LinearGradient>
-
-              {/* Model Status */}
-              <View style={styles.modelStatus}>
-                {/* Model Selector */}
-                <TouchableOpacity 
-                  style={styles.modelSelector}
-                  onPress={() => setShowModelPicker(!showModelPicker)}
-                >
-                  <Text style={styles.modelStatusLabel}>
-                    Model: {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name}
-                  </Text>
-                  <ChevronDown color="#9ca3af" size={16} />
-                </TouchableOpacity>
-
-                {/* Model Picker Dropdown */}
-                {showModelPicker && (
-                  <View style={styles.modelPickerDropdown}>
-                    {AVAILABLE_MODELS.map((model) => (
-                      <TouchableOpacity
-                        key={model.id}
-                        style={[
-                          styles.modelOption,
-                          selectedModel === model.id && styles.modelOptionSelected
-                        ]}
-                        onPress={() => {
-                          setSelectedModel(model.id);
-                          setShowModelPicker(false);
-                        }}
-                      >
-                        <Text style={[
-                          styles.modelOptionText,
-                          selectedModel === model.id && styles.modelOptionTextSelected
-                        ]}>
-                          {model.name}
-                        </Text>
-                        <Text style={styles.modelOptionSize}>{model.size}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+            <View style={styles.headerRight}>
+              <TouchableOpacity style={styles.githubButton}>
+                <Github color="white" size={isSmallScreen ? 12 : 14} />
+                <Star color="white" size={isSmallScreen ? 12 : 14} />
+                {!isSmallScreen && starCount && (
+                  <Text style={styles.buttonText}>{starCount.toLocaleString()}</Text>
                 )}
+              </TouchableOpacity>
 
-                {/* Download Status */}
-                {cactusLM.isDownloaded ? (
-                  <View style={styles.downloadProgress}>
-                    <Text style={[styles.modelStatusText, { color: '#34d399' }]}>
-                      ✓ {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name} Ready
+              <TouchableOpacity style={styles.startButton}>
+                <Text style={styles.buttonText}>{isSmallScreen ? 'Start' : 'Get Started'}</Text>
+              </TouchableOpacity>
+            </View>
+          </BlurView>
+        </Animated.View>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.content}
+        >
+          {/* Main Content */}
+          <View style={styles.mainContent}>
+            {messages.length === 0 && !workflowVisible && (
+              <Animated.View style={[styles.centerContent, { opacity: fadeAnim, transform: [{ translateX: badgeSlide }] }]}>
+                <LinearGradient
+                  colors={['rgba(52, 211, 153, 0.2)', 'rgba(190, 242, 100, 0.2)']}
+                  style={styles.badge}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.badgeText}>adaptive v 1.0</Text>
+                </LinearGradient>
+
+                {/* Model Status */}
+                <View style={styles.modelStatus}>
+                  {/* Model Selector */}
+                  <TouchableOpacity 
+                    style={styles.modelSelector}
+                    onPress={() => setShowModelPicker(!showModelPicker)}
+                  >
+                    <Text style={styles.modelStatusLabel}>
+                      Model: {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name}
                     </Text>
-                  </View>
-                ) : cactusLM.isDownloading ? (
-                  <View style={styles.downloadProgress}>
-                    <ActivityIndicator size="small" color="#34d399" />
-                    <Text style={styles.modelStatusText}>
-                      Downloading: {Math.round((cactusLM.downloadProgress || 0) * 100)}%
-                    </Text>
-                  </View>
-                ) : cactusLM.error ? (
-                  <View style={{ alignItems: 'center' }}>
-                    <Text style={styles.errorText}>Download failed - check your connection</Text>
-                    <TouchableOpacity style={[styles.downloadButton, { marginTop: 8 }]} onPress={handleDownloadModel}>
-                      <Download color="#34d399" size={16} />
-                      <Text style={styles.downloadButtonText}>Retry Download</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
+                    <ChevronDown color="#9ca3af" size={16} />
+                  </TouchableOpacity>
+
+                  {/* Model Picker Dropdown */}
+                  {showModelPicker && (
+                    <View style={styles.modelPickerDropdown}>
+                      {AVAILABLE_MODELS.map((model) => (
+                        <TouchableOpacity
+                          key={model.id}
+                          style={[
+                            styles.modelOption,
+                            selectedModel === model.id && styles.modelOptionSelected
+                          ]}
+                          onPress={() => {
+                            setSelectedModel(model.id);
+                            setShowModelPicker(false);
+                          }}
+                        >
+                          <Text style={[
+                            styles.modelOptionText,
+                            selectedModel === model.id && styles.modelOptionTextSelected
+                          ]}>
+                            {model.name}
+                          </Text>
+                          <Text style={styles.modelOptionSize}>{model.size}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Download Status */}
+                  {cactusLM.isDownloaded ? (
+                    <View style={styles.downloadProgress}>
+                      <Text style={[styles.modelStatusText, { color: '#34d399' }]}>
+                        ✓ {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name} Ready
+                      </Text>
+                    </View>
+                  ) : cactusLM.isDownloading ? (
+                    <View style={styles.downloadProgress}>
+                      <ActivityIndicator size="small" color="#34d399" />
+                      <Text style={styles.modelStatusText}>
+                        Downloading: {Math.round((cactusLM.downloadProgress || 0) * 100)}%
+                      </Text>
+                    </View>
+                  ) : cactusLM.error ? (
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={styles.errorText}>Download failed - check your connection</Text>
+                      <TouchableOpacity style={[styles.downloadButton, { marginTop: 8 }]} onPress={handleDownloadModel}>
+                        <Download color="#34d399" size={16} />
+                        <Text style={styles.downloadButtonText}>Retry Download</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
                   <TouchableOpacity style={styles.downloadButton} onPress={handleDownloadModel}>
                     <Download color="#34d399" size={16} />
                     <Text style={styles.downloadButtonText}>
@@ -382,86 +393,108 @@ export default function App() {
                     </Text>
                   </TouchableOpacity>
                 )}
-              </View>
-            </Animated.View>
-          )}
-
-          {messages.length > 0 && (
-            <ScrollView style={styles.messagesContainer}>
-              {messages.map((message, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.messageWrapper,
-                    message.role === 'user' ? styles.userMessage : styles.botMessage,
-                  ]}
-                >
-                  <View style={styles.messageBubble}>
-                    <Text style={styles.messageText}>{message.text}</Text>
-                  </View>
                 </View>
-              ))}
-            </ScrollView>
-          )}
-        </View>
+              </Animated.View>
+            )}
 
-        {/* Input Area */}
-        <View style={styles.inputWrapper}>
-          {messages.length === 0 && (
-            <Animated.View
-              style={[
-                styles.titleContainer,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ translateX: titleSlide }],
-                }
-              ]}
-            >
-              <Text style={styles.mainTitle}>Optimize your LLM usage</Text>
-              <Text style={styles.subtitle}>with Aurora AI</Text>
+            {/* Messages Display */}
+            {messages.length > 0 && !workflowVisible && (
+              <ScrollView style={styles.messagesContainer} contentContainerStyle={styles.messagesContent}>
+                {messages.map((message, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.messageWrapper,
+                      message.role === 'user' ? styles.userMessage : styles.botMessage,
+                    ]}
+                  >
+                    {/* Preprompt for assistant messages */}
+                    {message.role === 'assistant' && message.preprompt && (
+                      <TokenText
+                        text={message.preprompt}
+                        speed={15}
+                        isPreprompt
+                        containerStyle={styles.prepromptContainer}
+                      />
+                    )}
+                    <View style={[
+                      styles.messageBubble,
+                      message.role === 'user' ? styles.userBubble : styles.botBubble
+                    ]}>
+                      {message.role === 'assistant' && message.isAnimating ? (
+                        <TokenText
+                          text={message.text}
+                          speed={20}
+                          style={styles.messageText}
+                        />
+                      ) : (
+                        <Text style={[
+                          styles.messageText,
+                          message.role === 'user' && styles.userMessageText
+                        ]}>
+                          {message.text}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+
+          {/* Input Area */}
+          <View style={styles.inputWrapper}>
+            {messages.length === 0 && !workflowVisible && (
+              <Animated.View style={[styles.titleContainer, { opacity: fadeAnim, transform: [{ translateX: titleSlide }] }]}>
+                <Text style={styles.mainTitle}>Optimize your LLM usage</Text>
+                <Text style={styles.subtitle}>with Aurora AI</Text>
+              </Animated.View>
+            )}
+
+            <Animated.View style={{ opacity: fadeAnim, transform: [{ translateX: inputSlide }] }}>
+              <BlurView intensity={90} tint="dark" style={styles.inputContainer}>
+                <TextInput
+                  style={styles.input}
+                  value={inputValue}
+                  onChangeText={setInputValue}
+                  placeholder={displayedText}
+                  placeholderTextColor="rgba(167, 243, 208, 0.5)"
+                  multiline
+                  numberOfLines={3}
+                  editable={!workflowVisible}
+                />
+                <View style={styles.inputActions}>
+                  <TouchableOpacity style={styles.iconButton}>
+                    <Paperclip color="#a7f3d0" size={20} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.sendButton,
+                      (!inputValue.trim() || workflowVisible) && styles.sendButtonDisabled
+                    ]}
+                    onPress={handleSubmit}
+                    disabled={!inputValue.trim() || workflowVisible}
+                  >
+                    {workflowVisible ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <ArrowUp color="white" size={20} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </BlurView>
             </Animated.View>
-          )}
+          </View>
+        </KeyboardAvoidingView>
 
-          <Animated.View
-            style={{
-              opacity: fadeAnim,
-              transform: [{ translateX: inputSlide }],
-            }}
-          >
-            <BlurView intensity={90} tint="dark" style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              value={inputValue}
-              onChangeText={setInputValue}
-              placeholder={displayedText}
-              placeholderTextColor="rgba(167, 243, 208, 0.5)"
-              multiline
-              numberOfLines={3}
-            />
-            <View style={styles.inputActions}>
-              <TouchableOpacity style={styles.iconButton}>
-                <Paperclip color="#a7f3d0" size={20} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.sendButton,
-                  (!inputValue.trim() || cactusLM.isGenerating) && styles.sendButtonDisabled
-                ]}
-                onPress={handleSubmit}
-                disabled={!inputValue.trim() || cactusLM.isGenerating}
-              >
-                {cactusLM.isGenerating ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <ArrowUp color="white" size={20} />
-                )}
-              </TouchableOpacity>
-            </View>
-          </BlurView>
-          </Animated.View>
-        </View>
-      </KeyboardAvoidingView>
-    </ImageBackground>
+        {/* Aurora Workflow Overlay */}
+        <AuroraWorkflow
+          visible={workflowVisible}
+          phase={workflowPhase}
+          selectedModelId={routedModelId}
+        />
+      </ImageBackground>
+    </View>
   );
 }
 
@@ -469,13 +502,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  backgroundImage: {
+    flex: 1,
+  },
+  backgroundOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: isSmallScreen ? 12 : 20,
     paddingVertical: isSmallScreen ? 12 : 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 16,
+    paddingTop: Platform.OS === 'ios' ? 60 : 36,
     backgroundColor: 'rgba(5, 17, 33, 0.7)',
   },
   logoContainer: {
@@ -549,8 +589,12 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
   },
+  messagesContent: {
+    paddingVertical: 20,
+  },
   messageWrapper: {
     marginVertical: 8,
+    paddingHorizontal: 8,
   },
   userMessage: {
     alignItems: 'flex-end',
@@ -559,14 +603,31 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   messageBubble: {
-    maxWidth: '80%',
-    padding: 12,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    maxWidth: '85%',
+    padding: 14,
+    borderRadius: 18,
+  },
+  userBubble: {
+    backgroundColor: 'rgba(52, 211, 153, 0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.4)',
+  },
+  botBubble: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   messageText: {
     fontSize: 16,
-    color: '#1f2937',
+    color: 'white',
+    lineHeight: 24,
+  },
+  userMessageText: {
+    color: '#a7f3d0',
+  },
+  prepromptContainer: {
+    marginBottom: 8,
+    paddingLeft: 4,
   },
   inputWrapper: {
     paddingHorizontal: 24,
