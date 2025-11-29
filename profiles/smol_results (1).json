@@ -1,0 +1,51 @@
+{
+    "clusters": {
+        "5": {
+            "correct": 22,
+            "total": 98,
+            "accuracy": 0.22448979591836735
+        },
+        "3": {
+            "correct": 10,
+            "total": 29,
+            "accuracy": 0.3448275862068966
+        },
+        "6": {
+            "correct": 11,
+            "total": 34,
+            "accuracy": 0.3235294117647059
+        },
+        "4": {
+            "correct": 5,
+            "total": 25,
+            "accuracy": 0.2
+        },
+        "0": {
+            "correct": 11,
+            "total": 27,
+            "accuracy": 0.4074074074074074
+        },
+        "1": {
+            "correct": 6,
+            "total": 34,
+            "accuracy": 0.17647058823529413
+        },
+        "2": {
+            "correct": 2,
+            "total": 20,
+            "accuracy": 0.1
+        },
+        "8": {
+            "correct": 38,
+            "total": 52,
+            "accuracy": 0.7307692307692307
+        },
+        "7": {
+            "correct": 39,
+            "total": 48,
+            "accuracy": 0.8125
+        }
+    },
+    "total_correct": 144,
+    "total_count": 367
+}

@@ -175,52 +175,52 @@
     "SmolLM2": {
         "clusters": {
             "5": {
-                "correct": 30,
+                "correct": 22,
                 "total": 98,
-                "accuracy": 0.30612244897959184
+                "accuracy": 0.22448979591836735
             },
             "3": {
-                "correct": 16,
+                "correct": 10,
                 "total": 29,
-                "accuracy": 0.5517241379310345
+                "accuracy": 0.3448275862068966
             },
             "6": {
-                "correct": 21,
+                "correct": 11,
                 "total": 34,
-                "accuracy": 0.6176470588235294
+                "accuracy": 0.3235294117647059
             },
             "4": {
-                "correct": 8,
+                "correct": 5,
                 "total": 25,
-                "accuracy": 0.32
+                "accuracy": 0.2
             },
             "0": {
-                "correct": 17,
+                "correct": 11,
                 "total": 27,
-                "accuracy": 0.6296296296296297
+                "accuracy": 0.4074074074074074
             },
             "1": {
-                "correct": 14,
+                "correct": 6,
                 "total": 34,
-                "accuracy": 0.4117647058823529
+                "accuracy": 0.17647058823529413
             },
             "2": {
-                "correct": 5,
+                "correct": 2,
                 "total": 20,
-                "accuracy": 0.25
+                "accuracy": 0.1
             },
             "8": {
-                "correct": 37,
+                "correct": 38,
                 "total": 52,
-                "accuracy": 0.7115384615384616
+                "accuracy": 0.7307692307692307
             },
             "7": {
-                "correct": 43,
+                "correct": 39,
                 "total": 48,
-                "accuracy": 0.8958333333333334
+                "accuracy": 0.8125
             }
         },
-        "total_correct": 191,
+        "total_correct": 144,
         "total_count": 367
     }
 }
