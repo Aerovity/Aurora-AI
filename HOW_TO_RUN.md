@@ -170,6 +170,6 @@ npx expo run:android --device
 
 Then grab a coffee ☕ and wait for the build to complete!
 
----
+--------
 
 **Need help?** Check the troubleshooting section above or let me know what error you see.

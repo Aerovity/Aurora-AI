@@ -21,6 +21,7 @@ import { Github, Star, Paperclip, ArrowUp, Download, ChevronDown } from 'lucide-
 import { useCactusLM, type Message as CactusMessage } from 'cactus-react-native';
 import { AuroraWorkflow } from './components/AuroraWorkflow';
 import { TokenText } from './components/TokenText';
+import adaptiveRouter, { selectModel, streamCompletion, type RouterResult } from './services/adaptiveRouter';
 
 const { width, height } = Dimensions.get('window');
 const isSmallScreen = width < 768;
@@ -213,25 +214,190 @@ export default function App() {
       // Mark first prompt for background transition
       if (!hasSubmittedFirstPrompt) {
         setHasSubmittedFirstPrompt(true);
+        // Animate background to dark blue
+        Animated.timing(backgroundOpacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }).start();
       }
 
-      // Start Aurora workflow
+      // Start Aurora workflow - show workflow and Aurora thinking
       setWorkflowVisible(true);
       setWorkflowPhase('aurora-thinking');
-
-      // TODO: Replace with actual Aurora Router API call
-      // For now, Aurora stays in thinking state indefinitely
-      // When API is implemented:
-      // 1. Call Aurora Router API with the prompt
-      // 2. Receive response with { selectedModel, reasoning }
-      // 3. setRoutedModelId(response.selectedModel)
-      // 4. setWorkflowPhase('routing') then 'model-thinking'
-      // 5. Call the selected model for completion
-      // 6. Add response with preprompt (reasoning)
-      // 7. Hide workflow with smooth animation
       
-      console.log('Aurora Router: Analyzing prompt...', userMessage);
-      console.log('Waiting for Aurora Router API implementation...');
+      console.log('Aurora Router: Sending to Haiku router brain:', userMessage.substring(0, 50) + '...');
+
+      try {
+        // Step 1: Call select-model API (Haiku as router brain)
+        // Aurora "thinks" while Haiku decides the best model
+        const [routerResult] = await Promise.all([
+          selectModel(userMessage), // Send exact user question
+          new Promise(resolve => setTimeout(resolve, 2000)), // 2 sec minimum thinking animation
+        ]) as [RouterResult, void];
+
+        console.log('Aurora Router selected:', routerResult.displayName);
+        console.log('Model type:', routerResult.modelType);
+        console.log('Full model name:', routerResult.fullModelName);
+        console.log('Reason:', routerResult.reason);
+
+        // Step 2: Animate edge to selected model
+        setRoutedModelId(routerResult.modelId);
+        setWorkflowPhase('routing');
+        
+        // Wait for edge animation (0.8 sec)
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        // Step 3: Selected model "thinking"
+        setWorkflowPhase('model-thinking');
+
+        // Add placeholder message for streaming response
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          text: '', 
+          preprompt: routerResult.reason,
+          isAnimating: true 
+        }]);
+
+        // Step 4: Route to appropriate backend
+        let fullResponse = '';
+        
+        if (routerResult.modelType === 'local') {
+          // Use CactusLM for local model inference
+          console.log('Using CactusLM for local model:', routerResult.fullModelName);
+          
+          // Check if model is downloaded
+          if (!cactusLM.isDownloaded) {
+            fullResponse = `⚠️ The local model "${routerResult.displayName}" is not downloaded yet. Please download it first from the home screen, or try asking again and I'll route to a cloud model.`;
+            
+            // Update message
+            setMessages(prev => {
+              const updated = [...prev];
+              const lastIndex = updated.length - 1;
+              if (lastIndex >= 0 && updated[lastIndex].role === 'assistant') {
+                updated[lastIndex] = {
+                  ...updated[lastIndex],
+                  text: fullResponse,
+                  isAnimating: false,
+                };
+              }
+              return updated;
+            });
+          } else {
+            // Run local inference with CactusLM
+            try {
+              const cactusMessages: CactusMessage[] = [
+                { role: 'user', content: userMessage }
+              ];
+              
+              await cactusLM.complete({
+                messages: cactusMessages,
+                onToken: (token: string) => {
+                  fullResponse += token;
+                  setMessages(prev => {
+                    const updated = [...prev];
+                    const lastIndex = updated.length - 1;
+                    if (lastIndex >= 0 && updated[lastIndex].role === 'assistant') {
+                      updated[lastIndex] = {
+                        ...updated[lastIndex],
+                        text: fullResponse,
+                      };
+                    }
+                    return updated;
+                  });
+                },
+              });
+              
+              // Mark animation complete
+              setMessages(prev => {
+                const updated = [...prev];
+                const lastIndex = updated.length - 1;
+                if (lastIndex >= 0 && updated[lastIndex].role === 'assistant') {
+                  updated[lastIndex] = {
+                    ...updated[lastIndex],
+                    isAnimating: false,
+                  };
+                }
+                return updated;
+              });
+            } catch (localError) {
+              console.error('CactusLM error:', localError);
+              fullResponse = `⚠️ Local model error. Falling back message: The local model encountered an issue. Please try again.`;
+              setMessages(prev => {
+                const updated = [...prev];
+                const lastIndex = updated.length - 1;
+                if (lastIndex >= 0 && updated[lastIndex].role === 'assistant') {
+                  updated[lastIndex] = {
+                    ...updated[lastIndex],
+                    text: fullResponse,
+                    isAnimating: false,
+                  };
+                }
+                return updated;
+              });
+            }
+          }
+        } else {
+          // Use cloud model via Anthropic API
+          const result = await streamCompletion(
+            userMessage,
+            routerResult.fullModelName,
+            (token) => {
+              fullResponse += token;
+              setMessages(prev => {
+                const updated = [...prev];
+                const lastIndex = updated.length - 1;
+                if (lastIndex >= 0 && updated[lastIndex].role === 'assistant') {
+                  updated[lastIndex] = {
+                    ...updated[lastIndex],
+                    text: fullResponse,
+                  };
+                }
+                return updated;
+              });
+            },
+            () => {
+              setMessages(prev => {
+                const updated = [...prev];
+                const lastIndex = updated.length - 1;
+                if (lastIndex >= 0 && updated[lastIndex].role === 'assistant') {
+                  updated[lastIndex] = {
+                    ...updated[lastIndex],
+                    isAnimating: false,
+                  };
+                }
+                return updated;
+              });
+            },
+            routerResult.modelType
+          );
+        }
+
+        // Step 5: Complete workflow
+        setWorkflowPhase('complete');
+        
+        // Hide workflow after a brief moment
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setWorkflowVisible(false);
+        setWorkflowPhase('idle');
+        setRoutedModelId(undefined);
+
+      } catch (error) {
+        console.error('Aurora Router error:', error);
+        
+        // Add error message
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          text: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+          preprompt: '⚠️ Error occurred during routing',
+          isAnimating: false 
+        }]);
+
+        // Hide workflow
+        setWorkflowVisible(false);
+        setWorkflowPhase('idle');
+        setRoutedModelId(undefined);
+      }
     }
   };
 

@@ -27,15 +27,15 @@ const AURORA_NODE = {
 const MODELS_Y = AURORA_Y + VERTICAL_SPACING;
 const MODEL_SPACING = 75; // Horizontal spacing between models
 
-// Model configurations - for workflow display (HuggingFace represents local models)
+// Model configurations - Claude + Local models
 const MODELS = [
-  { id: 'smollm2-360m', label: 'HuggingFace', icon: require('../assets/lucidicons/huggingface.png') },
-  { id: 'claude-3-5-haiku', label: 'Haiku 4.5', icon: require('../assets/lucidicons/claudehaiku.png') },
-  { id: 'claude-opus-4', label: 'Opus 4.5', icon: require('../assets/lucidicons/claude.png') },
+  { id: 'smollm2-360m', label: 'SmolLM2', icon: require('../assets/lucidicons/huggingface.png') },
+  { id: 'claude-3-5-haiku', label: 'Haiku 3.5', icon: require('../assets/lucidicons/claudehaiku.png') },
+  { id: 'claude-opus-4', label: 'Opus 4', icon: require('../assets/lucidicons/claude.png') },
   { id: 'qwen3-0.6', label: 'Qwen 3', icon: require('../assets/lucidicons/qwen.png') },
 ];
 
-// Calculate model positions in a row
+// Calculate model positions in a row (centered)
 const getModelPositions = () => {
   const totalWidth = (MODELS.length - 1) * MODEL_SPACING;
   const startX = SCREEN_WIDTH / 2 - totalWidth / 2;
