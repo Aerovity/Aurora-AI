@@ -1,0 +1,226 @@
+{
+    "claude-haiku-4-5": {
+        "model_id": "claude-haiku-4-5-20251001",
+        "cost_per_1k_input": 0.001,
+        "cost_per_1k_output": 0.005,
+        "clusters": {
+            "5": {
+                "correct": 67,
+                "total": 91,
+                "failed": 7,
+                "accuracy": 0.7362637362637363
+            },
+            "3": {
+                "correct": 28,
+                "total": 29,
+                "failed": 0,
+                "accuracy": 0.9655172413793104
+            },
+            "6": {
+                "correct": 33,
+                "total": 34,
+                "failed": 0,
+                "accuracy": 0.9705882352941176
+            },
+            "4": {
+                "correct": 24,
+                "total": 25,
+                "failed": 0,
+                "accuracy": 0.96
+            },
+            "0": {
+                "correct": 21,
+                "total": 27,
+                "failed": 0,
+                "accuracy": 0.7777777777777778
+            },
+            "1": {
+                "correct": 23,
+                "total": 34,
+                "failed": 0,
+                "accuracy": 0.6764705882352942
+            },
+            "2": {
+                "correct": 18,
+                "total": 20,
+                "failed": 0,
+                "accuracy": 0.9
+            },
+            "8": {
+                "correct": 48,
+                "total": 52,
+                "failed": 0,
+                "accuracy": 0.9230769230769231
+            },
+            "7": {
+                "correct": 48,
+                "total": 48,
+                "failed": 0,
+                "accuracy": 1.0
+            }
+        }
+    },
+    "claude-opus-4-5": {
+        "model_id": "claude-opus-4-5-20251101",
+        "cost_per_1k_input": 0.015,
+        "cost_per_1k_output": 0.075,
+        "clusters": {
+            "5": {
+                "correct": 83,
+                "total": 92,
+                "failed": 6,
+                "accuracy": 0.9021739130434783
+            },
+            "3": {
+                "correct": 28,
+                "total": 29,
+                "failed": 0,
+                "accuracy": 0.9655172413793104
+            },
+            "6": {
+                "correct": 33,
+                "total": 34,
+                "failed": 0,
+                "accuracy": 0.9705882352941176
+            },
+            "4": {
+                "correct": 24,
+                "total": 25,
+                "failed": 0,
+                "accuracy": 0.96
+            },
+            "0": {
+                "correct": 24,
+                "total": 27,
+                "failed": 0,
+                "accuracy": 0.8888888888888888
+            },
+            "1": {
+                "correct": 29,
+                "total": 34,
+                "failed": 0,
+                "accuracy": 0.8529411764705882
+            },
+            "2": {
+                "correct": 18,
+                "total": 20,
+                "failed": 0,
+                "accuracy": 0.9
+            },
+            "8": {
+                "correct": 52,
+                "total": 52,
+                "failed": 0,
+                "accuracy": 1.0
+            },
+            "7": {
+                "correct": 48,
+                "total": 48,
+                "failed": 0,
+                "accuracy": 1.0
+            }
+        }
+    },
+    "Qwen3-0.6B": {
+        "clusters": {
+            "5": {
+                "correct": 26,
+                "total": 92,
+                "accuracy": 0.2826086956521739
+            },
+            "3": {
+                "correct": 10,
+                "total": 29,
+                "accuracy": 0.3448275862068966
+            },
+            "6": {
+                "correct": 9,
+                "total": 33,
+                "accuracy": 0.2727272727272727
+            },
+            "4": {
+                "correct": 5,
+                "total": 25,
+                "accuracy": 0.2
+            },
+            "0": {
+                "correct": 12,
+                "total": 27,
+                "accuracy": 0.4444444444444444
+            },
+            "1": {
+                "correct": 8,
+                "total": 32,
+                "accuracy": 0.25
+            },
+            "2": {
+                "correct": 2,
+                "total": 20,
+                "accuracy": 0.1
+            },
+            "8": {
+                "correct": 38,
+                "total": 51,
+                "accuracy": 0.7450980392156863
+            },
+            "7": {
+                "correct": 39,
+                "total": 48,
+                "accuracy": 0.8125
+            }
+        },
+        "total_correct": 149,
+        "total_count": 357
+    },
+    "SmolLM2": {
+        "clusters": {
+            "5": {
+                "correct": 30,
+                "total": 98,
+                "accuracy": 0.30612244897959184
+            },
+            "3": {
+                "correct": 16,
+                "total": 29,
+                "accuracy": 0.5517241379310345
+            },
+            "6": {
+                "correct": 21,
+                "total": 34,
+                "accuracy": 0.6176470588235294
+            },
+            "4": {
+                "correct": 8,
+                "total": 25,
+                "accuracy": 0.32
+            },
+            "0": {
+                "correct": 17,
+                "total": 27,
+                "accuracy": 0.6296296296296297
+            },
+            "1": {
+                "correct": 14,
+                "total": 34,
+                "accuracy": 0.4117647058823529
+            },
+            "2": {
+                "correct": 5,
+                "total": 20,
+                "accuracy": 0.25
+            },
+            "8": {
+                "correct": 37,
+                "total": 52,
+                "accuracy": 0.7115384615384616
+            },
+            "7": {
+                "correct": 43,
+                "total": 48,
+                "accuracy": 0.8958333333333334
+            }
+        },
+        "total_correct": 191,
+        "total_count": 367
+    }
+}
