@@ -20,6 +20,8 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+const NODE_RADIUS = 30;
+
 interface MultiAgentWorkflowProps {
   nodes: Node[];
   edges: Edge[];
@@ -157,13 +159,24 @@ export const MultiAgentWorkflow: React.FC<MultiAgentWorkflowProps> = ({
           const edgeKey = `${edge.from}-${edge.to}`;
           const isActivated = activatedEdges.has(edgeKey);
 
+          // Calculate angle between nodes
+          const dx = toNode.x - fromNode.x;
+          const dy = toNode.y - fromNode.y;
+          const angle = Math.atan2(dy, dx);
+
+          // Offset start and end points to node edges
+          const startX = fromNode.x + Math.cos(angle) * NODE_RADIUS;
+          const startY = fromNode.y + Math.sin(angle) * NODE_RADIUS;
+          const endX = toNode.x - Math.cos(angle) * NODE_RADIUS;
+          const endY = toNode.y - Math.sin(angle) * NODE_RADIUS;
+
           return (
             <EdgeComponent
               key={edge.id}
-              fromX={fromNode.x}
-              fromY={fromNode.y}
-              toX={toNode.x}
-              toY={toNode.y}
+              fromX={startX}
+              fromY={startY}
+              toX={endX}
+              toY={endY}
               progress={activeMessage?.progress || 0}
               isActivated={isActivated}
               edgeId={edge.id}

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -12,6 +12,16 @@ import { LinearGradient } from 'expo-linear-gradient'; // You'll need to install
 import type { Node } from './types';
 
 const NODE_RADIUS = 30;
+const ICON_SIZE = 28;
+
+// Map node IDs to their icon images
+const nodeIcons: { [key: string]: any } = {
+  aurora: require('../assets/lucidicons/Aurora.png'),    // Aurora
+  llm1: require('../assets/lucidicons/gemma.png'),       // Gemma 3
+  llm2: require('../assets/lucidicons/claudehaiku.png'), // Haiku 4.5
+  llm3: require('../assets/lucidicons/claude.png'),      // Opus 4.5
+  llm4: require('../assets/lucidicons/qwen.png'),        // Qwen 3
+};
 
 interface NodeComponentProps {
   node: Node;
@@ -190,7 +200,16 @@ const NodeComponent: React.FC<NodeComponentProps> = ({ node }) => {
       {/* Node border and background */}
       <View style={styles.nodeBorder}>
         {/* Inner circle background */}
-        <View style={styles.innerCircle} />
+        <View style={styles.innerCircle}>
+          {/* Node icon */}
+          {nodeIcons[node.id] && (
+            <Image
+              source={nodeIcons[node.id]}
+              style={styles.nodeIcon}
+              resizeMode="contain"
+            />
+          )}
+        </View>
 
         {isThinking ? (
           <>
@@ -290,6 +309,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     zIndex: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nodeIcon: {
+    width: ICON_SIZE,
+    height: ICON_SIZE,
   },
   gradientBorder: {
     position: 'absolute',

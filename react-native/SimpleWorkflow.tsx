@@ -8,30 +8,33 @@ const { width, height } = Dimensions.get('window');
 // Responsive positioning for phone screens (works on both iOS and Android)
 // Layout: User -> Aurora -> 4 LLMs (vertically stacked on right)
 const getNodePositions = () => {
-  const containerHeight = 400; // Increased height for 6 nodes
-  const padding = 20;
+  const containerHeight = 400;
+  const centerX = width / 2;
+  const centerY = containerHeight / 2;
+  const horizontalSpread = width * 0.25; // Smaller spread to fit on screen
+  const verticalSpread = containerHeight * 0.30; // Smaller vertical spread
 
   return {
     // User on the left
-    userX: padding + 60,
-    userY: containerHeight * 0.5,
+    userX: centerX - horizontalSpread,
+    userY: centerY,
 
-    // Aurora in the middle
-    auroraX: width * 0.5,
-    auroraY: containerHeight * 0.5,
+    // Aurora exactly at center (node.x is the center of the node)
+    auroraX: centerX,
+    auroraY: centerY,
 
-    // 4 LLMs on the right, vertically stacked
-    llm1X: width - padding - 60,
-    llm1Y: containerHeight * 0.2,
+    // 4 LLMs on the right, vertically stacked and centered
+    llm1X: centerX + horizontalSpread,
+    llm1Y: centerY - verticalSpread * 1.1,
 
-    llm2X: width - padding - 60,
-    llm2Y: containerHeight * 0.4,
+    llm2X: centerX + horizontalSpread,
+    llm2Y: centerY - verticalSpread * 0.37,
 
-    llm3X: width - padding - 60,
-    llm3Y: containerHeight * 0.6,
+    llm3X: centerX + horizontalSpread,
+    llm3Y: centerY + verticalSpread * 0.37,
 
-    llm4X: width - padding - 60,
-    llm4Y: containerHeight * 0.8,
+    llm4X: centerX + horizontalSpread,
+    llm4Y: centerY + verticalSpread * 1.1,
   };
 };
 
