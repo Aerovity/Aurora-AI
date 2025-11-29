@@ -12,24 +12,18 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Animated,
-  ActivityIndicator,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
-import { Github, Star, Paperclip, ArrowUp, Download, ChevronDown } from 'lucide-react-native';
-import { useCactusLM, type Message as CactusMessage } from 'cactus-react-native';
+import { VideoView, useVideoPlayer } from 'expo-video';
+import { Github, Star, Paperclip, ArrowUp } from 'lucide-react-native';
+import { SimpleWorkflow } from './react-native/SimpleWorkflow';
 
 const { width } = Dimensions.get('window');
 const isSmallScreen = width < 768;
 
-// Available local models
-const AVAILABLE_MODELS = [
-  { id: 'qwen3-0.6', name: 'Qwen3 0.6B', size: '~500MB' },
-  { id: 'gemma3-1b', name: 'Gemma3 1B', size: '~800MB' },
-] as const;
-
-type ModelId = typeof AVAILABLE_MODELS[number]['id'];
+// Removed old GraphAnimation - now using SimpleWorkflow component
 
 export default function App() {
   const [inputValue, setInputValue] = useState('');
@@ -39,22 +33,8 @@ export default function App() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedModel, setSelectedModel] = useState<ModelId>('qwen3-0.6');
-  const [showModelPicker, setShowModelPicker] = useState(false);
-
-  // CactusLM Hook - uses selected model
-  const cactusLM = useCactusLM({ model: selectedModel });
-
-  // Debug: Log cactusLM state
-  useEffect(() => {
-    console.log('CactusLM State:', {
-      isDownloaded: cactusLM.isDownloaded,
-      isDownloading: cactusLM.isDownloading,
-      downloadProgress: cactusLM.downloadProgress,
-      isGenerating: cactusLM.isGenerating,
-      error: cactusLM.error,
-    });
-  }, [cactusLM.isDownloaded, cactusLM.isDownloading, cactusLM.downloadProgress, cactusLM.error]);
+  const [showGraph, setShowGraph] = useState(false);
+  const [triggerWorkflow, setTriggerWorkflow] = useState(false);
 
   // Animation values
   const headerSlide = useRef(new Animated.Value(300)).current;
@@ -62,6 +42,12 @@ export default function App() {
   const titleSlide = useRef(new Animated.Value(300)).current;
   const inputSlide = useRef(new Animated.Value(300)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Video player for loading screen
+  const videoPlayer = useVideoPlayer(require('./assets/loading.mp4'), player => {
+    player.loop = true;
+    player.play();
+  });
 
   const placeholders = [
     'Ask me anything about LLM optimization...',
@@ -164,65 +150,15 @@ export default function App() {
     return () => clearTimeout(timeout);
   }, [displayedText, isDeleting, placeholderIndex]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (inputValue.trim()) {
-      const userMessage = inputValue.trim();
+      setMessages([...messages, { role: 'user', text: inputValue }]);
       setInputValue('');
-      
-      // Add user message
-      setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
+      setShowGraph(true);
 
-      try {
-        // Check if model is downloaded
-        if (!cactusLM.isDownloaded) {
-          setMessages(prev => [...prev, {
-            role: 'assistant',
-            text: 'Model not downloaded yet. Please download the model first using the download button.'
-          }]);
-          return;
-        }
-
-        // Build conversation history for context
-        const conversationHistory: CactusMessage[] = messages.map(msg => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.text,
-        }));
-        
-        // Add current user message
-        conversationHistory.push({ role: 'user', content: userMessage });
-
-        // Generate completion with CactusLM
-        const result = await cactusLM.complete({
-          messages: conversationHistory,
-          options: {
-            maxTokens: 512,
-            temperature: 0.7,
-          },
-        });
-
-        // Add assistant response
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          text: result.response || 'No response generated.',
-        }]);
-      } catch (error) {
-        console.error('CactusLM error:', error);
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          text: `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`,
-        }]);
-      }
-    }
-  };
-
-  // Handle model download
-  const handleDownloadModel = async () => {
-    if (cactusLM.isDownloading) return;
-    
-    try {
-      await cactusLM.download();
-    } catch (error) {
-      console.error('Download error:', error);
+      // Trigger the new workflow animation
+      setTriggerWorkflow(true);
+      setTimeout(() => setTriggerWorkflow(false), 100); // Reset trigger
     }
   };
 
@@ -231,17 +167,12 @@ export default function App() {
     return (
       <View style={styles.loadingContainer}>
         <StatusBar barStyle="light-content" />
-        <Animated.View style={{ opacity: fadeAnim, alignItems: 'center' }}>
-          <Image
-            source={require('./assets/images/aurora_logo.png')}
-            style={{ width: 120, height: 120 }}
-            contentFit="contain"
-          />
-          <Text style={{ color: 'white', fontSize: 24, marginTop: 20, fontWeight: 'bold' }}>
-            Aurora AI
-          </Text>
-          <ActivityIndicator size="large" color="#34d399" style={{ marginTop: 30 }} />
-        </Animated.View>
+        <VideoView
+          player={videoPlayer}
+          style={styles.loadingVideo}
+          contentFit="cover"
+          nativeControls={false}
+        />
       </View>
     );
   }
@@ -311,94 +242,28 @@ export default function App() {
               >
                 <Text style={styles.badgeText}>adaptive v 1.0</Text>
               </LinearGradient>
-
-              {/* Model Status */}
-              <View style={styles.modelStatus}>
-                {/* Model Selector */}
-                <TouchableOpacity 
-                  style={styles.modelSelector}
-                  onPress={() => setShowModelPicker(!showModelPicker)}
-                >
-                  <Text style={styles.modelStatusLabel}>
-                    Model: {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name}
-                  </Text>
-                  <ChevronDown color="#9ca3af" size={16} />
-                </TouchableOpacity>
-
-                {/* Model Picker Dropdown */}
-                {showModelPicker && (
-                  <View style={styles.modelPickerDropdown}>
-                    {AVAILABLE_MODELS.map((model) => (
-                      <TouchableOpacity
-                        key={model.id}
-                        style={[
-                          styles.modelOption,
-                          selectedModel === model.id && styles.modelOptionSelected
-                        ]}
-                        onPress={() => {
-                          setSelectedModel(model.id);
-                          setShowModelPicker(false);
-                        }}
-                      >
-                        <Text style={[
-                          styles.modelOptionText,
-                          selectedModel === model.id && styles.modelOptionTextSelected
-                        ]}>
-                          {model.name}
-                        </Text>
-                        <Text style={styles.modelOptionSize}>{model.size}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-
-                {/* Download Status */}
-                {cactusLM.isDownloaded ? (
-                  <View style={styles.downloadProgress}>
-                    <Text style={[styles.modelStatusText, { color: '#34d399' }]}>
-                      ✓ {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name} Ready
-                    </Text>
-                  </View>
-                ) : cactusLM.isDownloading ? (
-                  <View style={styles.downloadProgress}>
-                    <ActivityIndicator size="small" color="#34d399" />
-                    <Text style={styles.modelStatusText}>
-                      Downloading: {Math.round((cactusLM.downloadProgress || 0) * 100)}%
-                    </Text>
-                  </View>
-                ) : cactusLM.error ? (
-                  <View style={{ alignItems: 'center' }}>
-                    <Text style={styles.errorText}>Download failed - check your connection</Text>
-                    <TouchableOpacity style={[styles.downloadButton, { marginTop: 8 }]} onPress={handleDownloadModel}>
-                      <Download color="#34d399" size={16} />
-                      <Text style={styles.downloadButtonText}>Retry Download</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity style={styles.downloadButton} onPress={handleDownloadModel}>
-                    <Download color="#34d399" size={16} />
-                    <Text style={styles.downloadButtonText}>
-                      Download {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name} ({AVAILABLE_MODELS.find(m => m.id === selectedModel)?.size})
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
             </Animated.View>
           )}
 
           {messages.length > 0 && (
             <ScrollView style={styles.messagesContainer}>
               {messages.map((message, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.messageWrapper,
-                    message.role === 'user' ? styles.userMessage : styles.botMessage,
-                  ]}
-                >
-                  <View style={styles.messageBubble}>
-                    <Text style={styles.messageText}>{message.text}</Text>
+                <View key={index}>
+                  <View
+                    style={[
+                      styles.messageWrapper,
+                      message.role === 'user' ? styles.userMessage : styles.botMessage,
+                    ]}
+                  >
+                    <View style={styles.messageBubble}>
+                      <Text style={styles.messageText}>{message.text}</Text>
+                    </View>
                   </View>
+
+                  {/* Show workflow animation after user message */}
+                  {message.role === 'user' && index === messages.length - 1 && showGraph && (
+                    <SimpleWorkflow onMessageSent={triggerWorkflow} />
+                  )}
                 </View>
               ))}
             </ScrollView>
@@ -443,18 +308,11 @@ export default function App() {
                 <Paperclip color="#a7f3d0" size={20} />
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.sendButton,
-                  (!inputValue.trim() || cactusLM.isGenerating) && styles.sendButtonDisabled
-                ]}
+                style={[styles.sendButton, !inputValue.trim() && styles.sendButtonDisabled]}
                 onPress={handleSubmit}
-                disabled={!inputValue.trim() || cactusLM.isGenerating}
+                disabled={!inputValue.trim()}
               >
-                {cactusLM.isGenerating ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <ArrowUp color="white" size={20} />
-                )}
+                <ArrowUp color="white" size={20} />
               </TouchableOpacity>
             </View>
           </BlurView>
@@ -634,92 +492,24 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  modelStatus: {
-    marginTop: 16,
+  graphContainer: {
+    marginVertical: 16,
+    paddingHorizontal: 12,
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 12,
-    minWidth: 250,
   },
-  modelStatusLabel: {
-    color: '#9ca3af',
-    fontSize: 12,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  modelStatusText: {
-    color: '#a7f3d0',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  downloadProgress: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  downloadButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#34d399',
-    backgroundColor: 'rgba(52, 211, 153, 0.1)',
-  },
-  downloadButtonText: {
-    color: '#34d399',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  errorText: {
-    color: '#ef4444',
-    fontSize: 12,
-    marginTop: 8,
-  },
-  modelSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 12,
-  },
-  modelPickerDropdown: {
-    position: 'absolute',
-    top: 40,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(17, 24, 39, 0.95)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.3)',
-    zIndex: 100,
-    overflow: 'hidden',
-  },
-  modelOption: {
+  graphLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    width: '100%',
+    paddingHorizontal: 30,
+    marginTop: 8,
   },
-  modelOptionSelected: {
-    backgroundColor: 'rgba(52, 211, 153, 0.2)',
-  },
-  modelOptionText: {
-    color: '#d1d5db',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  modelOptionTextSelected: {
-    color: '#34d399',
-  },
-  modelOptionSize: {
-    color: '#6b7280',
+  graphLabel: {
+    color: '#a7f3d0',
     fontSize: 12,
+    fontWeight: '600',
+  },
+  graphLabelRight: {
+    textAlign: 'right',
   },
 });
